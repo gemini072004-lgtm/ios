@@ -1,9 +1,9 @@
 "use client";
-import React from "react";
+import React, { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HomeIndicator } from "@/components/HomeIndicator";
 
-export default function GameTipsDetailsPage() {
+function GameTipsDetailsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const gameTitle = searchParams.get('title') || "Game Tips";
@@ -131,6 +131,14 @@ export default function GameTipsDetailsPage() {
 
             <HomeIndicator activeTab="home" />
         </div>
+    );
+}
+
+export default function GameTipsDetailsPage() {
+    return (
+        <Suspense fallback={null}>
+            <GameTipsDetailsContent />
+        </Suspense>
     );
 }
 
