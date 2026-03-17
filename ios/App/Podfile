@@ -6,7 +6,7 @@ require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
 # Use ENV['BITRISE_SOURCE_DIR'] for an absolute path to the project root
 # require File.join(File.dirname(`node -p 'const path = require("path"); path.join(path.dirname(require.resolve("@capacitor/core")), "../ios")'`.strip), 'scripts/pods_helpers')
 
-platform :ios, '14.0'
+platform :ios, '15.0'
 use_frameworks!
 
 # workaround to avoid Xcode caching of Pods that requires
@@ -17,7 +17,9 @@ install! 'cocoapods', :disable_input_output_paths => true
 def capacitor_pods
   pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorCommunityPlayIntegrity', :path => '../../node_modules/@capacitor-community/play-integrity'
   pod 'CapacitorCommunityStripe', :path => '../../node_modules/@capacitor-community/stripe'
+  pod 'CapacitorFirebaseAuthentication', :path => '../../node_modules/@capacitor-firebase/authentication'
   pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
   pod 'CapacitorBrowser', :path => '../../node_modules/@capacitor/browser'
   pod 'CapacitorCamera', :path => '../../node_modules/@capacitor/camera'
