@@ -319,10 +319,10 @@ const SignUp = () => {
     e.preventDefault();
     setError({});
 
-    if (!isMobileVerified) {
-      setError({ form: "Please verify your mobile number before signing up." });
-      return;
-    }
+    // if (!isMobileVerified) {
+    //   setError({ form: "Please verify your mobile number before signing up." });
+    //   return;
+    // }
 
     const clientErrors = {};
     const firstNameError = validateName(formData.firstname, "First name");
@@ -757,8 +757,7 @@ const SignUp = () => {
                     <select
                       value={countryCode}
                       onChange={(e) => setCountryCode(e.target.value)}
-                      className="absolute top-7 -translate-y-1/2 left-[50px] appearance-none [font-family:'Poppins',Helvetica] font-medium text-[#d3d3d3] text-[14.3px] bg-transparent border-none outline-none pr-2 disabled:opacity-50"
-                      disabled={isOtpSent || isMobileVerified}
+                      className="absolute top-7 -translate-y-1/2 left-[50px] appearance-none [font-family:'Poppins',Helvetica] font-medium text-[#d3d3d3] text-[14.3px] bg-transparent border-none outline-none pr-2"
                     >
                       <option value="+91" className="bg-[#272052] text-[#d3d3d3]">+91</option>
                       <option value="+1" className="bg-[#272052] text-[#d3d3d3]">+1</option>
@@ -768,12 +767,11 @@ const SignUp = () => {
                       value={formData.mobile}
                       onChange={(e) => handleInputChange("mobile", e.target.value.replace(/\D/g, ''))}
                       maxLength={15}
-                      className="absolute top-[17px] left-[87px] [font-family:'Poppins',Helvetica] font-medium text-[#d3d3d3] text-[14.3px] tracking-[0] leading-[normal] bg-transparent border-none outline-none w-[240px] disabled:opacity-50"
+                      className="absolute top-[17px] left-[87px] [font-family:'Poppins',Helvetica] font-medium text-[#d3d3d3] text-[14.3px] tracking-[0] leading-[normal] bg-transparent border-none outline-none w-[240px]"
                       placeholder="Enter your mobile number"
                       required
-                      disabled={isOtpSent || isMobileVerified}
                     />
-                    {!isOtpSent && !isMobileVerified && formData.mobile.length > 0 && (
+                    {/* {!isOtpSent && !isMobileVerified && formData.mobile.length > 0 && (
                       <button
                         type="button"
                         onClick={handleSendOtp}
@@ -782,18 +780,18 @@ const SignUp = () => {
                       >
                         {isLoadingss ? 'Sending...' : 'Send OTP'}
                       </button>
-                    )}
-                    {isMobileVerified && (
+                    )} */}
+                    {/* {isMobileVerified && (
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 text-green-400 text-sm font-semibold flex items-center">✓ Verified</div>
-                    )}
+                    )} */}
                   </div>
                   {error.mobile && <p className="text-red-400 text-xs mt-1 ml-2 max-w-[314px] break-words">{error.mobile}</p>}
                   {/* reCAPTCHA — inside mobile field wrapper so it doesn't create extra gap */}
-                  <div id="recaptcha-container" className={`flex justify-center ${isOtpSent || isMobileVerified ? 'hidden' : 'mt-1 '}`}></div>
+                  {/* <div id="recaptcha-container" className={`flex justify-center ${isOtpSent || isMobileVerified ? 'hidden' : 'mt-1 '}`}></div> */}
                 </div>
 
                 {/* OTP SECTION */}
-                {isOtpSent && !isMobileVerified && (
+                {/* {isOtpSent && !isMobileVerified && (
                   <div className="w-full flex flex-col items-center justify-center ">
                     <h3 className="[font-family:'Poppins',Helvetica] mb-1 ml-4 font-medium text-[#A4A4A4] text-[14.3px] tracking-[0] leading-[normal]">
                       Verify OTP sent to your mobile number
@@ -842,7 +840,7 @@ const SignUp = () => {
                       </button>
                     </div>
                   </div>
-                )}
+                )} */}
                 <div className="flex flex-col">
                   <label className="[font-family:'Poppins',Helvetica] font-medium text-neutral-400 text-[14.3px] tracking-[0] mb-[1px] leading-[normal]">
                     Password <span className="text-red-500">*</span>
@@ -989,7 +987,7 @@ const SignUp = () => {
                 {/* Sign Up Button */}
                 <div className='flex justify-between items-center'>
                   <button
-                    onClick={handleSubmit} disabled={isLoading || !isMobileVerified}
+                    onClick={handleSubmit} disabled={isLoading}
 
                     className="all-[unset] box-border w-full h-[50px] cursor-pointer disabled:opacity-50 mt-1"
                     type="submit"

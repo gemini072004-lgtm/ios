@@ -23,7 +23,7 @@ const FeaturesSection = () => {
         },
 
         {
-            id: 3,
+            id: 2,
             title: "Daily\nrewards",
             // bgColor: "#0ca8de",
             route: "/Daily-Reward",
@@ -39,7 +39,7 @@ const FeaturesSection = () => {
             hasComplexIcon: false,
         },
         {
-            id: 4,
+            id: 3,
             title: "Challenges",
             // bgColor: "#be8fff",
             route: "/dailychallenge",
@@ -50,6 +50,21 @@ const FeaturesSection = () => {
             mainImage: "https://c.animaapp.com/En0DOTZF/img/image-4086@2x.png",
             imageClasses:
                 "absolute top-1 left-[86px] w-[70px] h-[70px] aspect-[1] object-cover",
+            titleClasses:
+                "absolute top-[41px] left-[17px] [font-family:'Poppins',Helvetica] font-semibold text-white text-xs tracking-[-0.12px] leading-[normal]",
+            hasComplexIcon: false,
+        },
+        {
+            id: 4,
+            title: "Deal",
+            // bgColor: "#8963f5",
+            route: "/deals",
+            rectangleImage1:
+                "https://c.animaapp.com/En0DOTZF/img/rectangle-41006.svg",
+            rectangleImage2:
+                "https://c.animaapp.com/En0DOTZF/img/rectangle-41001.svg",
+            mainImage: "https://c.animaapp.com/En0DOTZF/img/image-4043-1@2x.png",
+            imageClasses: "absolute top-px left-[81px] w-[70px] h-[70px] aspect-[1]",
             titleClasses:
                 "absolute top-[41px] left-[17px] [font-family:'Poppins',Helvetica] font-semibold text-white text-xs tracking-[-0.12px] leading-[normal]",
             hasComplexIcon: false,
