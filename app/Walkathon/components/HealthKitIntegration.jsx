@@ -179,14 +179,28 @@ export const HealthKitIntegration = ({
 
     // Check HealthKit availability when iOS platform is detected
     useEffect(() => {
-        if (!isIOS) return;
+        if (!isIOS) {
+            setIsAvailable(false);
+            return;
+        }
         
         const checkAvailability = async () => {
             try {
-                const result = await callNativeMethod('isAvailable');
-                const available = result?.available ?? false;
-                setIsAvailable(available);
-                logHealthKit("✅ HealthKit Availability Checked on Mount", { available });
+                // Direct check without callNativeMethod to avoid circular dependency
+                if (Capacitor.Plugins?.HealthKit?.isAvailable) {
+                    const result = await Capacitor.Plugins.HealthKit.isAvailable();
+                    const available = result?.available ?? false;
+                    setIsAvailable(available);
+                    logHealthKit("✅ HealthKit Availability Checked on Mount", { available });
+                } else if (window.Capacitor?.Plugins?.HealthKit?.isAvailable) {
+                    const result = await window.Capacitor.Plugins.HealthKit.isAvailable();
+                    const available = result?.available ?? false;
+                    setIsAvailable(available);
+                    logHealthKit("✅ HealthKit Availability Checked on Mount", { available });
+                } else {
+                    logHealthKit("⚠️ HealthKit plugin not found", {});
+                    setIsAvailable(false);
+                }
             } catch (err) {
                 logHealthKit("⚠️ Could not check HealthKit availability on mount", { error: err.message });
                 setIsAvailable(false);
@@ -194,7 +208,7 @@ export const HealthKitIntegration = ({
         };
         
         checkAvailability();
-    }, [isIOS, callNativeMethod]);
+    }, [isIOS]);
 
     /**
      * Call native iOS HealthKit method using Capacitor bridge
