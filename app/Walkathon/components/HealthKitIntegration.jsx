@@ -19,9 +19,11 @@ export const HealthKitIntegration = ({
     const [isAuthorizing, setIsAuthorizing] = useState(false);
     const [isAuthorized, setIsAuthorized] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isSyncingInProgress, setIsSyncingInProgress] = useState(false);
     const [lastSync, setLastSync] = useState(null);
     const [error, setError] = useState(null);
     const [isIOS, setIsIOS] = useState(false);
+    const [isAvailable, setIsAvailable] = useState(false);
 
     // Debug logging helper
     const logHealthKit = (label, data) => {
@@ -174,6 +176,25 @@ export const HealthKitIntegration = ({
         };
         checkPlatform();
     }, []);
+
+    // Check HealthKit availability when iOS platform is detected
+    useEffect(() => {
+        if (!isIOS) return;
+        
+        const checkAvailability = async () => {
+            try {
+                const result = await callNativeMethod('isAvailable');
+                const available = result?.available ?? false;
+                setIsAvailable(available);
+                logHealthKit("✅ HealthKit Availability Checked on Mount", { available });
+            } catch (err) {
+                logHealthKit("⚠️ Could not check HealthKit availability on mount", { error: err.message });
+                setIsAvailable(false);
+            }
+        };
+        
+        checkAvailability();
+    }, [isIOS, callNativeMethod]);
 
     /**
      * Call native iOS HealthKit method using Capacitor bridge
@@ -441,7 +462,7 @@ export const HealthKitIntegration = ({
         setError(null);
 
         try {
-            // Check if HealthKit is available
+            // Check if HealthKit is available first
             logHealthKit("🔍 Checking HealthKit Availability", {
                 timestamp: new Date().toISOString()
             });
@@ -450,19 +471,31 @@ export const HealthKitIntegration = ({
             try {
                 const result = await callNativeMethod('isAvailable');
                 available = result?.available ?? false;
+                setIsAvailable(available);
 
                 logHealthKit("✅ HealthKit Availability Check", {
                     available,
                     result,
                     message: available ? "HealthKit is available on this device" : "HealthKit is NOT available on this device"
                 });
+
+                // If HealthKit is not available, show appropriate error
+                if (!available) {
+                    const errorMsg = "HealthKit is not available on this device. Please ensure your device supports HealthKit.";
+                    logHealthKit("❌ HealthKit Not Available", {
+                        available,
+                        message: errorMsg
+                    });
+                    setError(errorMsg);
+                    onError?.(errorMsg);
+                    return false;
+                }
             } catch (err) {
                 logHealthKit("⚠️ Could Not Check HealthKit Availability", {
                     error: err.message,
                     stack: err.stack,
-                    note: "Will continue anyway - will fail gracefully if not available"
+                    note: "Will continue - will fail gracefully if not available"
                 });
-                // Continue anyway - will fail gracefully if not available
             }
 
             // Request authorization
@@ -536,8 +569,15 @@ export const HealthKitIntegration = ({
             return;
         }
 
+        // Prevent race condition - skip if sync is already in progress
+        if (isSyncingInProgress) {
+            logHealthKit("Sync Skipped", { reason: "Sync already in progress", isSyncingInProgress });
+            return;
+        }
+
         logHealthKit("Starting Step Sync", { timestamp: new Date().toISOString(), isAuthorized, isJoined });
         setIsSyncing(true);
+        setIsSyncingInProgress(true);
         setError(null);
 
         try {
@@ -765,8 +805,9 @@ export const HealthKitIntegration = ({
             onError?.(errorMsg);
         } finally {
             setIsSyncing(false);
+            setIsSyncingInProgress(false);
         }
-    }, [isAuthorized, isJoined, onStepsSynced, onError, callNativeMethod]);
+    }, [isAuthorized, isJoined, onStepsSynced, onError, callNativeMethod, isSyncingInProgress]);
 
     // Auto-sync when joined and authorized
     useEffect(() => {
@@ -838,132 +879,210 @@ export const HealthKitIntegration = ({
     }, [isIOS, isAuthorized, isAuthorizing, isSyncing, isJoined, error, lastSync]);
 
     return (
-        <div className="w-full px-4 space-y-4">
-            <AnimatePresence>
+        <div className="w-full px-4">
+            <AnimatePresence mode="wait">
+                {/* Error State */}
                 {error && (
                     <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="bg-red-900/20 border border-red-500/50 rounded-lg p-3"
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        className="bg-red-500/10 backdrop-blur-sm border border-red-500/30 rounded-2xl p-4 mb-3"
                     >
-                        <p className="text-red-400 text-sm">{error}</p>
-                        {error.includes("HealthKit") && (
-                            <p className="text-gray-400 text-xs mt-2">
-                                Make sure "Movement and Fitness" is enabled in Settings → Privacy & Security → Health.
-                            </p>
-                        )}
-                        {error.includes("native bridge") && (
-                            <p className="text-orange-400 text-xs mt-2">
-                                ⚠️ Please set up the native HealthKit bridge. See IOS_SETUP.md for instructions.
-                            </p>
-                        )}
+                        <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
+                                <span className="text-red-400">⚠️</span>
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-red-400 text-sm font-medium">{error}</p>
+                                {error.includes("HealthKit") && (
+                                    <p className="text-gray-500 text-xs mt-2">
+                                        Enable "Movement and Fitness" in Settings → Privacy & Security → Health
+                                    </p>
+                                )}
+                            </div>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
+            {/* Non-iOS Platform */}
             {!isIOS && (
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="bg-gray-900/20 border border-gray-700/50 rounded-lg p-4"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4"
                 >
-                    <div className="space-y-2">
-                        <p className="text-gray-400 text-sm text-center">
-                            HealthKit integration is only available on iOS devices.
-                        </p>
-                        <p className="text-gray-500 text-xs text-center">
-                            Platform: {Capacitor.getPlatform()} | Native: {Capacitor.isNativePlatform() ? "Yes" : "No"}
-                        </p>
-                    </div>
-                </motion.div>
-            )}
-
-            {isIOS && !isAuthorized && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="bg-orange-900/20 border border-orange-500/50 rounded-lg p-4"
-                >
-                    <div className="flex items-start gap-3">
-                        <div className="text-2xl">🏃</div>
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center">
+                            <span className="text-2xl">📱</span>
+                        </div>
                         <div className="flex-1">
-                            <h4 className="text-white font-semibold mb-2">
-                                Connect Apple Health
-                            </h4>
-                            <p className="text-gray-300 text-sm mb-3">
-                                Authorize WeWard to access your step count from Apple Health to
-                                track your progress automatically. Steps will sync in real-time.
+                            <p className="text-white font-medium text-sm">HealthKit Available on iOS</p>
+                            <p className="text-gray-500 text-xs mt-1">
+                                Open this app on your iPhone to sync steps from Apple Health
                             </p>
-                            {error && (
-                                <p className="text-gray-400 text-xs mb-3 mt-2">
-                                    If after authorizing WeWard to access Apple Health, your
-                                    counter is still at zero, check that the "Movement and
-                                    Fitness" option is enabled in{" "}
-                                    <span className="text-blue-400 underline">your settings</span>
-                                    .
-                                </p>
-                            )}
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={requestHealthKitAuth}
-                                disabled={isAuthorizing}
-                                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            >
-                                {isAuthorizing ? "Authorizing..." : "Open Apple Health"}
-                            </motion.button>
                         </div>
                     </div>
                 </motion.div>
             )}
 
+            {/* iOS - Not Authorized */}
+            {isIOS && !isAuthorized && !isAvailable && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-gradient-to-br from-gray-500/10 to-gray-600/5 backdrop-blur-sm border border-gray-500/30 rounded-2xl p-4"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-lg">
+                            <span className="text-2xl">❌</span>
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="text-white font-bold mb-1">
+                                HealthKit Not Available
+                            </h4>
+                            <p className="text-gray-400 text-xs leading-relaxed">
+                                Your device does not support HealthKit or it's disabled in Settings
+                            </p>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
+            {/* iOS - Not Authorized but Available */}
+            {isIOS && !isAuthorized && isAvailable && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 backdrop-blur-sm border border-orange-500/30 rounded-2xl p-4"
+                >
+                    <div className="flex items-center gap-4">
+                        {/* Apple Health Icon */}
+                        <motion.div
+                            animate={{ 
+                                scale: [1, 1.05, 1],
+                                boxShadow: [
+                                    "0 0 0 0 rgba(249, 115, 22, 0.4)",
+                                    "0 0 0 10px rgba(249, 115, 22, 0)",
+                                    "0 0 0 0 rgba(249, 115, 22, 0)"
+                                ]
+                            }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center shadow-lg shadow-orange-500/20"
+                        >
+                            <span className="text-2xl">❤️</span>
+                        </motion.div>
+
+                        <div className="flex-1">
+                            <h4 className="text-white font-bold mb-1">
+                                Connect Apple Health
+                            </h4>
+                            <p className="text-gray-400 text-xs leading-relaxed">
+                                Sync your steps automatically and track your progress in real-time
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Connect Button */}
+                    <motion.button
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={requestHealthKitAuth}
+                        disabled={isAuthorizing}
+                        className="w-full mt-4 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/30 disabled:opacity-50 transition-all"
+                    >
+                        {isAuthorizing ? (
+                            <span className="flex items-center justify-center gap-2">
+                                <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                                />
+                                Connecting...
+                            </span>
+                        ) : (
+                            "Connect Apple Health"
+                        )}
+                    </motion.button>
+
+                    {/* Privacy Note */}
+                    <p className="text-gray-600 text-xs text-center mt-3">
+                        🔒 Your health data stays on your device
+                    </p>
+                </motion.div>
+            )}
+
+            {/* iOS - Authorized & Connected */}
             {isIOS && isAuthorized && (
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="bg-green-900/20 border border-green-500/50 rounded-lg p-4"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-gradient-to-br from-green-500/10 to-green-600/5 backdrop-blur-sm border border-green-500/30 rounded-2xl p-4"
                 >
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="text-2xl">✅</div>
+                            {/* Connected Icon */}
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 300 }}
+                                className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/30"
+                            >
+                                <motion.span
+                                    initial={{ opacity: 0, scale: 0 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="text-white text-xl"
+                                >
+                                    ✓
+                                </motion.span>
+                            </motion.div>
+
                             <div>
-                                <p className="text-white font-semibold">Apple Health Connected</p>
+                                <div className="flex items-center gap-2">
+                                    <p className="text-white font-bold text-sm">Apple Health</p>
+                                    <span className="px-2 py-0.5 bg-green-500/30 text-green-400 text-xs rounded-full font-medium">
+                                        Connected
+                                    </span>
+                                </div>
                                 {lastSync && (
-                                    <p className="text-gray-400 text-xs">
-                                        Last synced: {lastSync.toLocaleTimeString()}
+                                    <p className="text-gray-500 text-xs mt-0.5">
+                                        Last sync: {lastSync.toLocaleTimeString()}
                                     </p>
                                 )}
-                                <p className="text-green-400 text-xs mt-1">
-                                    Auto-syncing every 30 seconds
-                                </p>
                             </div>
                         </div>
+
+                        {/* Sync Button */}
                         <motion.button
-                            whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={syncSteps}
                             disabled={isSyncing || !isJoined}
-                            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50"
                         >
-                            {isSyncing ? "Syncing..." : "Sync Now"}
+                            {isSyncing ? (
+                                <motion.span
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                    className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                                />
+                            ) : (
+                                "Sync"
+                            )}
                         </motion.button>
                     </div>
-                </motion.div>
-            )}
 
-            {isSyncing && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-center"
-                >
-                    <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full mx-auto"
-                    />
-                    <p className="text-gray-400 text-sm mt-2">Syncing steps from HealthKit...</p>
+                    {/* Auto-Sync Status */}
+                    <div className="mt-3 pt-3 border-t border-green-500/20">
+                        <div className="flex items-center gap-2">
+                            <motion.div
+                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                                className="w-2 h-2 rounded-full bg-green-500"
+                            />
+                            <span className="text-gray-400 text-xs">Auto-syncing every 30 seconds</span>
+                        </div>
+                    </div>
                 </motion.div>
             )}
         </div>

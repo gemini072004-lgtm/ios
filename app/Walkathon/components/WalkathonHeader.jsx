@@ -1,12 +1,11 @@
 "use client";
 import React from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { motion } from "framer-motion";
 
 /**
- * Walkathon Header Component
- * Displays page header with back button and title
+ * Walkathon Header Component - iOS Native Style
+ * Animated header with back button and title
  */
 export const WalkathonHeader = ({ title = "Walkathon Challenge" }) => {
     const router = useRouter();
@@ -19,29 +18,43 @@ export const WalkathonHeader = ({ title = "Walkathon Challenge" }) => {
         <motion.header
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between w-full px-4 py-3 mb-4"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="flex items-center justify-between w-full px-4 py-4"
         >
-            <div className="flex items-center gap-4">
-                <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleBack}
-                    className="relative w-6 h-6 flex-shrink-0"
-                    aria-label="Go back"
+            {/* Back Button */}
+            <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleBack}
+                className="w-10 h-10 rounded-2xl bg-white/5 hover:bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10 transition-all"
+                aria-label="Go back"
+            >
+                <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="text-white"
                 >
-                    <Image
-                        width={24}
-                        height={24}
-                        className="w-6 h-6"
-                        alt="Back"
-                        src="https://c.animaapp.com/V1uc3arn/img/arrow-back-ios-new@2x.png"
+                    <path
+                        d="M15.41 7.41L14 6L8 12L14 18L15.41 16.59L10.83 12L15.41 7.41Z"
+                        fill="currentColor"
                     />
-                </motion.button>
+                </svg>
+            </motion.button>
 
-                <h1 className="font-semibold text-white text-xl leading-5">{title}</h1>
-            </div>
+            {/* Title */}
+            <motion.h1
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
+                className="font-bold text-white text-lg tracking-tight"
+            >
+                {title}
+            </motion.h1>
+
+            {/* Placeholder for symmetry */}
+            <div className="w-10 h-10" />
         </motion.header>
     );
 };
-
-

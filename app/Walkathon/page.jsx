@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +20,7 @@ import { HealthKitIntegration } from "./components/HealthKitIntegration";
 import { LeaderboardSection } from "./components/LeaderboardSection";
 import { ActionButtons } from "./components/ActionButtons";
 import { MilestoneCelebration } from "./components/MilestoneCelebration";
+import { TabNavigation } from "./components/TabNavigation";
 
 /**
  * Walkathon Page
@@ -29,7 +30,7 @@ export default function WalkathonPage() {
     const { token, user } = useAuth();
     const router = useRouter();
 
-    // State management
+    // State management - ALL hooks at top level
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isEligible, setIsEligible] = useState(false);
@@ -45,22 +46,35 @@ export default function WalkathonPage() {
     const [userRank, setUserRank] = useState(null);
     const [timeRemaining, setTimeRemaining] = useState(null);
     const [newMilestones, setNewMilestones] = useState([]);
+    
+    // Tab state
+    const [activeTab, setActiveTab] = useState("milestones");
 
-    // Debug logging helper
-    const logWalkathon = (label, data) => {
+    // Tab change handler - navigates to new page
+    const handleTabChange = useCallback((tabId) => {
+        setActiveTab(tabId);
+        if (tabId === "milestones") {
+            router.push('/Walkathon/milestones');
+        } else if (tabId === "leaderboard") {
+            router.push('/Walkathon/leaderboard');
+        }
+    }, [router]);
+
+    // Debug logging helper - useCallback to prevent recreation
+    const logWalkathon = useCallback((label, data) => {
         console.log(`[🚶 WALKATHON] ${label}`, data);
-    };
+    }, []);
 
-    // Log component mount
+    // Log component mount/unmount
     useEffect(() => {
         logWalkathon("Component Mounted", { token: !!token, user: user?.id || "N/A" });
         return () => {
             logWalkathon("Component Unmounted", {});
         };
-    }, []);
+    }, [logWalkathon, token, user?.id]);
 
     // Load walkathon status
-    const loadWalkathonStatus = async () => {
+    const loadWalkathonStatus = useCallback(async () => {
         if (!token) {
             logWalkathon("Status Load Skipped", { reason: "No token" });
             return;
@@ -82,18 +96,16 @@ export default function WalkathonPage() {
                     message: response.message,
                     status: response.status,
                     body: response.body,
-                    fullResponse: response,
                     troubleshooting: [
                         "Check backend logs for errors",
                         "Verify API endpoint is working",
-                        "Check authentication token is valid",
-                        "Verify backend walkathon service is configured"
+                        "Check authentication token is valid"
                     ]
                 });
 
                 console.error("Walkathon API error:", response);
                 setIsEligible(false);
-                setError(response.error || response.message || "Failed to load walkathon status. Please try again later.");
+                setError(response.error || response.message || "Failed to load walkathon status.");
                 setLoading(false);
                 return;
             }
@@ -102,34 +114,18 @@ export default function WalkathonPage() {
             if (response.success && response.data) {
                 const { data } = response;
 
-                // Enhanced logging - show full response structure
                 logWalkathon("📥 Full Status Response Structure", {
                     hasSuccess: response.success,
                     hasData: !!response.data,
                     dataKeys: Object.keys(data || {}),
-                    fullData: data,
-                    hasActiveWalkathon: data.hasActiveWalkathon,
-                    walkathonExists: !!data.walkathon,
-                    eligibilityExists: !!data.eligibility,
-                    userProgressExists: !!data.userProgress
+                    hasActiveWalkathon: data.hasActiveWalkathon
                 });
-
-                console.log("Walkathon status response:", data);
 
                 if (data.hasActiveWalkathon) {
                     logWalkathon("✅ Active Walkathon Found", {
                         walkathonId: data.walkathon?.id,
                         walkathonTitle: data.walkathon?.title,
-                        walkathonDescription: data.walkathon?.description,
-                        walkathonStartDate: data.walkathon?.startDate,
-                        walkathonEndDate: data.walkathon?.endDate,
-                        rewardTiersCount: data.walkathon?.rewardTiers?.length || 0,
-                        rewardTiers: data.walkathon?.rewardTiers,
-                        isEligible: data.eligibility?.isEligible,
-                        eligibilityReason: data.eligibility?.reason,
-                        eligibilityDetails: data.eligibility,
-                        userProgressExists: !!data.userProgress,
-                        userProgress: data.userProgress
+                        eligibility: data.eligibility?.isEligible
                     });
 
                     setIsEligible(data.eligibility?.isEligible || false);
@@ -137,103 +133,57 @@ export default function WalkathonPage() {
 
                     // Check if user has progress (has joined)
                     const hasProgress = data.userProgress && data.userProgress.hasProgress;
+                    setIsJoined(hasProgress);
+                    
                     if (hasProgress) {
                         logWalkathon("User Has Progress", {
                             totalSteps: data.userProgress.progress?.totalSteps,
-                            milestonesReached: data.userProgress.progress?.milestonesReached?.length || 0,
-                            rewardsClaimed: data.userProgress.progress?.rewardsClaimed?.length || 0,
-                            userRank: data.userProgress.userRank
+                            milestonesReached: data.userProgress.progress?.milestonesReached?.length || 0
                         });
 
-                        setIsJoined(true);
                         setProgress(data.userProgress.progress);
                         setUserRank(data.userProgress.userRank);
                         setTimeRemaining(data.userProgress.timeRemaining);
-
-                        // Load fresh progress data
-                        await loadProgress();
                     } else {
                         logWalkathon("User Not Joined Yet", {});
-                        setIsJoined(false);
                     }
 
-                    // Always load leaderboard
+                    // Load leaderboard
                     await loadLeaderboard();
+                    
+                    // If joined, load fresh progress
+                    if (hasProgress) {
+                        await loadProgress();
+                    }
                 } else {
                     logWalkathon("❌ No Active Walkathon", {
                         hasActiveWalkathon: data.hasActiveWalkathon,
                         message: data.message,
-                        eligibility: data.eligibility,
-                        eligibilityReason: data.eligibility?.reason,
-                        eligibilityIsEligible: data.eligibility?.isEligible,
-                        walkathonExists: !!data.walkathon,
-                        walkathon: data.walkathon,
-                        userProgressExists: !!data.userProgress,
-                        userProgress: data.userProgress,
-                        fullResponseData: data,
-                        possibleReasons: [
-                            !data.walkathon ? "No walkathon object in response" : "",
-                            !data.hasActiveWalkathon ? "hasActiveWalkathon is false" : "",
-                            !data.eligibility?.isEligible ? `Not eligible: ${data.eligibility?.reason || "Unknown reason"}` : "",
-                            data.message ? `Backend message: ${data.message}` : ""
-                        ].filter(Boolean)
+                        eligibility: data.eligibility
                     });
 
                     setIsEligible(false);
-                    // More specific error message
-                    const errorMsg = data.message ||
-                        data.eligibility?.reason ||
-                        "No active walkathon found. The walkathon may not be available at this time.";
-                    setError(errorMsg);
-
-                    // Enhanced logging for debugging
-                    console.warn("No active walkathon - Full details:", {
-                        hasActiveWalkathon: data.hasActiveWalkathon,
-                        message: data.message,
-                        eligibility: data.eligibility,
-                        walkathon: data.walkathon,
-                        userProgress: data.userProgress,
-                        fullData: data
-                    });
+                    setError(data.message || data.eligibility?.reason || "No active walkathon found.");
                 }
             } else {
-                // Unexpected response structure
                 logWalkathon("❌ Unexpected Response Structure", {
-                    response,
                     hasSuccess: response?.success,
-                    hasData: !!response?.data,
-                    responseKeys: Object.keys(response || {}),
-                    responseStructure: {
-                        success: response?.success,
-                        data: response?.data,
-                        error: response?.error,
-                        message: response?.message
-                    },
-                    troubleshooting: [
-                        "Backend response structure doesn't match expected format",
-                        "Expected: { success: true, data: {...} }",
-                        "Check backend API endpoint response structure",
-                        "Verify API middleware is configured correctly"
-                    ]
+                    hasData: !!response?.data
                 });
-
-                console.error("Unexpected walkathon status response:", response);
                 setIsEligible(false);
-                setError("Invalid response from server. Please try again later.");
+                setError("Invalid response from server.");
             }
         } catch (err) {
             console.error("Error loading walkathon status:", err);
-            // More user-friendly error message
-            const errorMsg = err.message || "Failed to load walkathon. Please check your connection and try again.";
-            setError(errorMsg);
+            setError(err.message || "Failed to load walkathon.");
             setIsEligible(false);
         } finally {
             setLoading(false);
         }
-    };
+    }, [token, logWalkathon]);
 
     // Load user progress
-    const loadProgress = async () => {
+    const loadProgress = useCallback(async () => {
         if (!token) {
             logWalkathon("Progress Load Skipped", { reason: "No token" });
             return;
@@ -244,18 +194,13 @@ export default function WalkathonPage() {
             const response = await getWalkathonProgress(token);
             logWalkathon("Progress API Response", { response });
 
-            // Backend returns { success: true, data: {...} }
             if (response.success && response.data) {
                 const { data } = response;
 
                 if (data.hasProgress) {
                     logWalkathon("Progress Updated", {
                         totalSteps: data.progress?.totalSteps || data.progress?.totalStepsCompleted || 0,
-                        milestonesReached: data.progress?.milestonesReached?.length || 0,
-                        rewardsClaimed: data.progress?.rewardsClaimed?.length || 0,
-                        availableRewards: data.progress?.availableRewards?.length || 0,
-                        userRank: data.userRank,
-                        timeRemaining: data.timeRemaining
+                        milestonesReached: data.progress?.milestonesReached?.length || 0
                     });
 
                     setProgress(data.progress);
@@ -268,16 +213,15 @@ export default function WalkathonPage() {
                 }
             }
         } catch (err) {
-            logWalkathon("Progress Load Error", { error: err.message, stack: err.stack });
-            // If error, user might not have joined yet
+            logWalkathon("Progress Load Error", { error: err.message });
             if (err.message?.includes("not joined") || err.message?.includes("not found")) {
                 setIsJoined(false);
             }
         }
-    };
+    }, [token, logWalkathon]);
 
     // Load leaderboard
-    const loadLeaderboard = async () => {
+    const loadLeaderboard = useCallback(async () => {
         if (!token) {
             logWalkathon("Leaderboard Load Skipped", { reason: "No token" });
             return;
@@ -288,33 +232,31 @@ export default function WalkathonPage() {
             const response = await getWalkathonLeaderboard(token);
             logWalkathon("Leaderboard API Response", { response });
 
-            // Backend returns { success: true, data: { weekKey, leaderboard, totalParticipants } }
             if (response.success && response.data) {
                 const { data } = response;
 
                 logWalkathon("Leaderboard Updated", {
                     totalParticipants: data.totalParticipants,
-                    leaderboardEntries: data.leaderboard?.length || 0,
-                    weekKey: data.weekKey
+                    leaderboardEntries: data.leaderboard?.length || 0
                 });
 
                 setLeaderboard(data.leaderboard || []);
 
-                // Also update walkathon total participants if available
+                // Update walkathon total participants if available
                 if (data.totalParticipants !== undefined && walkathon) {
-                    setWalkathon({
-                        ...walkathon,
+                    setWalkathon(prev => prev ? {
+                        ...prev,
                         totalParticipants: data.totalParticipants
-                    });
+                    } : null);
                 }
             }
         } catch (err) {
-            logWalkathon("Leaderboard Load Error", { error: err.message, stack: err.stack });
+            logWalkathon("Leaderboard Load Error", { error: err.message });
         }
-    };
+    }, [token, logWalkathon, walkathon]);
 
-    // Join walkathon
-    const handleJoin = async () => {
+    // Join walkathon handler
+    const handleJoin = useCallback(async () => {
         if (!token) {
             logWalkathon("Join Skipped", { reason: "No token" });
             return;
@@ -332,7 +274,6 @@ export default function WalkathonPage() {
             const response = await joinWalkathon(token);
             logWalkathon("Join API Response", { response });
 
-            // Backend returns { success: true, data: { success: true, message, progress } }
             if (response.success && response.data) {
                 const { data } = response;
 
@@ -352,15 +293,15 @@ export default function WalkathonPage() {
                 }
             }
         } catch (err) {
-            logWalkathon("Join Error", { error: err.message, stack: err.stack });
+            logWalkathon("Join Error", { error: err.message });
             setError(err.message || "Failed to join walkathon");
         } finally {
             setIsJoining(false);
         }
-    };
+    }, [token, isJoining, logWalkathon, loadProgress, loadLeaderboard]);
 
     // Sync steps from HealthKit
-    const handleStepsSynced = async (stepData) => {
+    const handleStepsSynced = useCallback(async (stepData) => {
         if (!token) {
             logWalkathon("Sync Skipped", { reason: "No token" });
             return;
@@ -374,8 +315,7 @@ export default function WalkathonPage() {
             logWalkathon("Syncing Steps", {
                 steps: stepData.steps,
                 date: stepData.date,
-                source: stepData.source,
-                timestamp: new Date().toISOString()
+                source: stepData.source
             });
 
             setIsSyncing(true);
@@ -384,18 +324,15 @@ export default function WalkathonPage() {
             const response = await syncWalkathonSteps(stepData, token);
             logWalkathon("Sync API Response", { response });
 
-            // Backend returns { success: true, data: { success: true, message, newMilestones, progress } }
             if (response.success && response.data) {
                 const { data } = response;
 
                 if (data.success) {
                     logWalkathon("Sync Success", {
                         newTotalSteps: data.progress?.totalSteps || data.progress?.totalStepsCompleted || 0,
-                        newMilestonesCount: data.newMilestones?.length || 0,
-                        message: data.message
+                        newMilestonesCount: data.newMilestones?.length || 0
                     });
 
-                    // Update progress with latest data
                     setProgress(data.progress);
 
                     // Show milestone celebration if new milestones reached
@@ -405,11 +342,10 @@ export default function WalkathonPage() {
                             count: data.newMilestones.length
                         });
                         setNewMilestones(data.newMilestones);
-                        // Refresh progress to show new milestones
                         await loadProgress();
                     }
 
-                    // Reload leaderboard to update rankings
+                    // Reload leaderboard
                     await loadLeaderboard();
                 } else {
                     logWalkathon("Sync Failed", { message: data.message });
@@ -417,15 +353,15 @@ export default function WalkathonPage() {
                 }
             }
         } catch (err) {
-            logWalkathon("Sync Error", { error: err.message, stack: err.stack });
+            logWalkathon("Sync Error", { error: err.message });
             setError(err.message || "Failed to sync steps");
         } finally {
             setIsSyncing(false);
         }
-    };
+    }, [token, isJoined, logWalkathon, loadProgress, loadLeaderboard]);
 
     // Claim reward for a milestone
-    const handleClaimReward = async (milestone) => {
+    const handleClaimReward = useCallback(async (milestone) => {
         if (!token) {
             logWalkathon("Claim Skipped", { reason: "No token" });
             return;
@@ -437,8 +373,7 @@ export default function WalkathonPage() {
 
         try {
             logWalkathon("Claiming Reward", {
-                milestone: typeof milestone === 'number' ? milestone : milestone.stepMilestone || milestone,
-                timestamp: new Date().toISOString()
+                milestone: typeof milestone === 'number' ? milestone : milestone.stepMilestone || milestone
             });
 
             setIsClaiming(true);
@@ -447,19 +382,15 @@ export default function WalkathonPage() {
             const response = await claimWalkathonReward(milestone, token);
             logWalkathon("Claim API Response", { response });
 
-            // Backend returns { success: true, data: { success: true, message, reward, transaction } }
             if (response.success && response.data) {
                 const { data } = response;
 
                 if (data.success) {
                     logWalkathon("✅ Reward Claimed Successfully", {
                         reward: data.reward,
-                        xpReward: data.reward?.xpReward || 0,
-                        transactionId: data.transaction?.id,
-                        message: data.message
+                        xpReward: data.reward?.xpReward || 0
                     });
 
-                    // Reload progress to update claimed rewards
                     await loadProgress();
                     await loadLeaderboard();
                 } else {
@@ -468,33 +399,30 @@ export default function WalkathonPage() {
                 }
             }
         } catch (err) {
-            logWalkathon("Claim Error", { error: err.message, stack: err.stack });
+            logWalkathon("Claim Error", { error: err.message });
             setError(err.message || "Failed to claim reward");
         } finally {
             setIsClaiming(false);
         }
-    };
+    }, [token, isClaiming, logWalkathon, loadProgress, loadLeaderboard]);
 
     // Claim all available rewards
-    const handleClaimAll = async () => {
+    const handleClaimAll = useCallback(async () => {
         if (!progress?.availableRewards || progress.availableRewards.length === 0) {
             return;
         }
 
-        // Claim rewards one by one
         for (const reward of progress.availableRewards) {
             await handleClaimReward(reward.stepMilestone);
         }
-    };
+    }, [progress, handleClaimReward]);
 
-    // View full leaderboard
-    const handleViewFullLeaderboard = () => {
-        // Navigate to full leaderboard page if exists
-        // For now, just scroll or expand
-        router.push("/walkathon/leaderboard");
-    };
+    // View full leaderboard (disabled - showing inline now)
+    const handleViewFullLeaderboard = useCallback(() => {
+        // Navigation disabled - leaderboard shown inline
+    }, []);
 
-    // Initialize
+    // Initialize - load data on mount
     useEffect(() => {
         if (token) {
             logWalkathon("Initializing Walkathon Page", { token: !!token });
@@ -502,7 +430,7 @@ export default function WalkathonPage() {
         } else {
             logWalkathon("Initialization Skipped", { reason: "No token" });
         }
-    }, [token]);
+    }, [token, loadWalkathonStatus, logWalkathon]);
 
     // Auto-refresh progress every 30 seconds
     useEffect(() => {
@@ -512,31 +440,46 @@ export default function WalkathonPage() {
                 logWalkathon("Auto-Refresh Triggered", { timestamp: new Date().toISOString() });
                 loadProgress();
                 loadLeaderboard();
-            }, 30000); // Every 30 seconds
+            }, 30000);
 
             return () => {
                 logWalkathon("Auto-Refresh Stopped", {});
                 clearInterval(interval);
             };
         }
-    }, [isJoined, token]);
+    }, [isJoined, token, loadProgress, loadLeaderboard, logWalkathon]);
 
     // Calculate level from progress
-    const getCurrentLevel = () => {
+    const getCurrentLevel = useCallback(() => {
         if (!progress) return { level: 1, progress: 0, max: 3 };
 
-        // Count claimed rewards (handle both number array and object array)
         const claimedCount = Array.isArray(progress.rewardsClaimed)
             ? progress.rewardsClaimed.length
             : 0;
 
-        // Calculate level based on milestones claimed
         const level = Math.floor(claimedCount / 3) + 1;
         const levelProgress = claimedCount % 3;
         return { level, progress: levelProgress, max: 3 };
-    };
+    }, [progress]);
 
     const levelInfo = getCurrentLevel();
+
+    // Log render state changes - stable hook at bottom
+    useEffect(() => {
+        logWalkathon("Render State", {
+            loading,
+            isEligible,
+            isJoined,
+            isJoining,
+            isClaiming,
+            isSyncing,
+            hasWalkathon: !!walkathon,
+            hasProgress: !!progress,
+            totalSteps: progress?.totalSteps || progress?.totalStepsCompleted || 0,
+            leaderboardCount: leaderboard.length,
+            userRank
+        });
+    }, [loading, isEligible, isJoined, isJoining, isClaiming, isSyncing, walkathon, progress, leaderboard.length, userRank, logWalkathon]);
 
     // Loading state
     if (loading) {
@@ -551,7 +494,7 @@ export default function WalkathonPage() {
         );
     }
 
-    // Error or not eligible state (AC1: Only eligible users can access)
+    // Error or not eligible state
     if (error || !isEligible || !walkathon) {
         return (
             <div className="relative w-full min-h-screen bg-black pb-[150px]">
@@ -568,13 +511,8 @@ export default function WalkathonPage() {
                         </h2>
                         <p className="text-gray-400 text-sm mb-6">
                             {error ||
-                                "Walkathon is not currently available or you're not eligible. Eligibility is based on country, XP level, and age restrictions."}
+                                "Walkathon is not currently available or you're not eligible."}
                         </p>
-                        {walkathon?.eligibility?.reason && (
-                            <p className="text-orange-400 text-xs mb-4">
-                                {walkathon.eligibility.reason}
-                            </p>
-                        )}
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -590,7 +528,7 @@ export default function WalkathonPage() {
         );
     }
 
-    // Extract progress data (backend returns arrays/objects)
+    // Extract progress data
     const milestonesReached = Array.isArray(progress?.milestonesReached)
         ? progress.milestonesReached
         : [];
@@ -605,24 +543,7 @@ export default function WalkathonPage() {
         : [];
     const totalSteps = progress?.totalSteps || progress?.totalStepsCompleted || 0;
     const nextMilestone = progress?.nextMilestone || null;
-
-    // Log render state changes
-    useEffect(() => {
-        logWalkathon("Render State", {
-            loading,
-            isEligible,
-            isJoined,
-            isJoining,
-            isClaiming,
-            isSyncing,
-            hasWalkathon: !!walkathon,
-            hasProgress: !!progress,
-            totalSteps,
-            leaderboardCount: leaderboard.length,
-            userRank,
-            error: error || null
-        });
-    }, [loading, isEligible, isJoined, isJoining, isClaiming, isSyncing, walkathon, progress, totalSteps, leaderboard.length, userRank, error]);
+    const progressPercentage = progress?.progressPercentage || 0;
 
     return (
         <div className="relative w-full min-h-screen bg-black pb-[150px] animate-fade-in">
@@ -693,6 +614,7 @@ export default function WalkathonPage() {
                         nextMilestone={nextMilestone}
                         milestones={rewardTiers}
                         rewardsClaimed={rewardsClaimed}
+                        progressPercentage={progressPercentage}
                     />
                 )}
 
@@ -709,24 +631,28 @@ export default function WalkathonPage() {
                     totalSteps={totalSteps}
                 />
 
-                {/* Reward Tiers Section */}
+                {/* Tab Navigation - navigates to new pages */}
                 {isJoined && (
-                    <RewardTiersSection
-                        rewardTiers={rewardTiers}
-                        milestonesReached={milestonesReached}
-                        rewardsClaimed={rewardsClaimed}
-                        onClaimReward={handleClaimReward}
-                        isClaiming={isClaiming}
+                    <TabNavigation
+                        activeTab={activeTab}
+                        onTabChange={handleTabChange}
                     />
                 )}
 
-                {/* Leaderboard Section */}
-                <LeaderboardSection
-                    leaderboard={leaderboard}
-                    userRank={userRank}
-                    totalParticipants={walkathon.totalParticipants || 0}
-                    onViewFullLeaderboard={handleViewFullLeaderboard}
-                />
+                {/* Show inline content based on tab (for preview before navigation) */}
+                {!isJoined && (
+                    <>
+                        {/* Leaderboard Section - for non-joined users */}
+                        <LeaderboardSection
+                            leaderboard={leaderboard}
+                            userRank={userRank}
+                            totalParticipants={walkathon?.totalParticipants || 0}
+                            onViewFullLeaderboard={handleViewFullLeaderboard}
+                            weekKey={walkathon?.weekKey || ""}
+                            showHeader={true}
+                        />
+                    </>
+                )}
             </div>
 
             {/* Milestone Celebration Modal */}
@@ -739,4 +665,3 @@ export default function WalkathonPage() {
         </div>
     );
 }
-

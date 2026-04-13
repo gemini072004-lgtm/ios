@@ -3,8 +3,8 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /**
- * Milestone Celebration Component
- * Shows celebration animation when user reaches a new milestone
+ * Milestone Celebration Component - iOS Native Style
+ * Beautiful celebration animation with confetti effect
  */
 export const MilestoneCelebration = ({ milestones = [], onClose }) => {
     const [visibleMilestones, setVisibleMilestones] = useState([]);
@@ -18,7 +18,7 @@ export const MilestoneCelebration = ({ milestones = [], onClose }) => {
             // Auto-close after showing all milestones
             const timer = setTimeout(() => {
                 onClose?.();
-            }, milestones.length * 3000); // 3 seconds per milestone
+            }, milestones.length * 4000); // 4 seconds per milestone
 
             return () => clearTimeout(timer);
         }
@@ -37,7 +37,7 @@ export const MilestoneCelebration = ({ milestones = [], onClose }) => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+                    className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 p-4"
                     onClick={() => {
                         if (currentIndex < visibleMilestones.length - 1) {
                             setCurrentIndex(currentIndex + 1);
@@ -46,107 +46,175 @@ export const MilestoneCelebration = ({ milestones = [], onClose }) => {
                         }
                     }}
                 >
-                    <motion.div
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.5, opacity: 0 }}
-                        className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-3xl p-8 max-w-sm mx-4 text-center"
-                    >
-                        {/* Confetti/Sparkles */}
-                        {[...Array(20)].map((_, i) => (
-                            <motion.div
-                                key={i}
-                                className="absolute w-2 h-2 bg-yellow-400 rounded-full"
-                                style={{
-                                    left: `${Math.random() * 100}%`,
-                                    top: `${Math.random() * 100}%`,
-                                }}
-                                animate={{
-                                    y: [0, -50, 0],
-                                    opacity: [1, 0, 1],
-                                    scale: [1, 0.5, 1],
-                                }}
-                                transition={{
-                                    duration: 2,
-                                    repeat: Infinity,
-                                    delay: Math.random() * 2,
-                                }}
-                            />
-                        ))}
-
-                        {/* Milestone Icon */}
+                    {/* Confetti Particles */}
+                    {[...Array(30)].map((_, i) => (
                         <motion.div
+                            key={i}
+                            className="absolute w-3 h-3 rounded-full"
+                            style={{
+                                left: `${Math.random() * 100}%`,
+                                top: `${Math.random() * 100}%`,
+                                backgroundColor: ['#f97316', '#fbbf24', '#34d399', '#f472b6', '#818cf8'][Math.floor(Math.random() * 5)],
+                            }}
                             animate={{
-                                scale: [1, 1.2, 1],
-                                rotate: [0, 10, -10, 0],
+                                y: [0, -100, 200],
+                                opacity: [1, 1, 0],
+                                rotate: [0, 360],
+                                scale: [1, 1.5, 0.5],
                             }}
                             transition={{
-                                duration: 0.5,
-                                repeat: 3,
+                                duration: 2 + Math.random() * 2,
+                                repeat: Infinity,
+                                delay: Math.random() * 2,
+                                ease: "easeOut",
                             }}
-                            className="text-6xl mb-4"
-                        >
-                            🎉
-                        </motion.div>
+                        />
+                    ))}
 
-                        {/* Milestone Title */}
-                        <motion.h2
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            className="text-white text-2xl font-bold mb-2"
-                        >
-                            Milestone Reached!
-                        </motion.h2>
+                    {/* Celebration Card */}
+                    <motion.div
+                        initial={{ scale: 0.5, opacity: 0, y: 50 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.5, opacity: 0, y: 50 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        className="relative w-full max-w-sm bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 rounded-3xl p-8 shadow-2xl shadow-orange-500/50 overflow-hidden"
+                    >
+                        {/* Glow Effect */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 to-transparent rounded-3xl" />
+                        
+                        {/* Content */}
+                        <div className="relative z-10 text-center">
+                            {/* Animated Trophy/Star */}
+                            <motion.div
+                                animate={{
+                                    scale: [1, 1.2, 1],
+                                    rotate: [0, 15, -15, 0],
+                                }}
+                                transition={{
+                                    duration: 0.8,
+                                    repeat: Infinity,
+                                    repeatDelay: 1,
+                                }}
+                                className="relative inline-block mb-6"
+                            >
+                                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 flex items-center justify-center shadow-2xl shadow-yellow-500/50 mx-auto">
+                                    <motion.span
+                                        animate={{ 
+                                            rotate: [0, 360],
+                                        }}
+                                        transition={{
+                                            duration: 20,
+                                            repeat: Infinity,
+                                            ease: "linear",
+                                        }}
+                                        className="text-5xl"
+                                    >
+                                        ⭐
+                                    </motion.span>
+                                </div>
+                                {/* Pulse Rings */}
+                                <motion.div
+                                    className="absolute inset-0 rounded-full border-4 border-yellow-400"
+                                    animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                />
+                            </motion.div>
 
-                        {/* Milestone Description */}
-                        <motion.p
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.2 }}
-                            className="text-white/90 text-lg mb-4"
-                        >
-                            {currentMilestone.description || `${currentMilestone.stepMilestone} Steps`}
-                        </motion.p>
+                            {/* Title */}
+                            <motion.h2
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.2 }}
+                                className="text-white text-3xl font-black mb-2 tracking-tight"
+                            >
+                                Milestone Unlocked!
+                            </motion.h2>
 
-                        {/* XP Reward */}
-                        <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: 0.4, type: "spring" }}
-                            className="bg-yellow-400/20 border-2 border-yellow-400 rounded-xl p-4 mb-4"
-                        >
-                            <p className="text-yellow-300 text-sm mb-1">You earned</p>
-                            <p className="text-yellow-400 text-4xl font-bold">
-                                +{currentMilestone.xpReward} XP
-                            </p>
-                        </motion.div>
+                            {/* Milestone Steps */}
+                            <motion.p
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.3 }}
+                                className="text-white/90 text-xl font-bold mb-1"
+                            >
+                                {currentMilestone.description || `${(currentMilestone.stepMilestone || 0).toLocaleString()} Steps`}
+                            </motion.p>
 
-                        {/* Progress Indicator */}
-                        {visibleMilestones.length > 1 && (
+                            <motion.p
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.35 }}
+                                className="text-white/60 text-sm mb-6"
+                            >
+                                {(currentMilestone.stepMilestone || 0).toLocaleString()} steps reached
+                            </motion.p>
+
+                            {/* XP Reward Card */}
+                            <motion.div
+                                initial={{ scale: 0, rotateX: 90 }}
+                                animate={{ scale: 1, rotateX: 0 }}
+                                transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
+                                className="bg-white/20 backdrop-blur-sm rounded-2xl p-5 mb-6 border border-white/30"
+                            >
+                                <p className="text-white/80 text-sm font-medium mb-1">Reward Earned</p>
+                                <motion.div
+                                    animate={{ 
+                                        scale: [1, 1.1, 1],
+                                    }}
+                                    transition={{ duration: 1, repeat: 2 }}
+                                    className="flex items-center justify-center gap-3"
+                                >
+                                    <div className="text-center">
+                                        <span className="text-4xl font-black text-white">
+                                            +{currentMilestone.xpReward || 0}
+                                        </span>
+                                        <span className="text-xl font-bold text-yellow-300 block">XP</span>
+                                    </div>
+                                    {currentMilestone.coinReward > 0 && (
+                                        <div className="text-center">
+                                            <span className="text-4xl font-black text-white">
+                                                +{currentMilestone.coinReward || 0}
+                                            </span>
+                                            <span className="text-xl font-bold text-yellow-600 block">💰</span>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            </motion.div>
+
+                            {/* Progress Dots */}
+                            {visibleMilestones.length > 1 && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.6 }}
+                                    className="flex justify-center gap-2 mb-4"
+                                >
+                                    {visibleMilestones.map((_, i) => (
+                                        <motion.div
+                                            key={i}
+                                            animate={{ 
+                                                scale: i === currentIndex ? 1.3 : 1,
+                                                backgroundColor: i === currentIndex ? '#fbbf24' : 'rgba(255,255,255,0.3)'
+                                            }}
+                                            className="w-2 h-2 rounded-full"
+                                        />
+                                    ))}
+                                </motion.div>
+                            )}
+
+                            {/* Tap Hint */}
                             <motion.p
                                 initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.6 }}
-                                className="text-white/70 text-sm"
+                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+                                className="text-white/60 text-sm"
                             >
-                                {currentIndex + 1} of {visibleMilestones.length} milestones
+                                Tap to {currentIndex < visibleMilestones.length - 1 ? "see next" : "continue"}
                             </motion.p>
-                        )}
-
-                        {/* Tap to continue */}
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 1 }}
-                            className="text-white/60 text-xs mt-4"
-                        >
-                            Tap to {currentIndex < visibleMilestones.length - 1 ? "continue" : "close"}
-                        </motion.p>
+                        </div>
                     </motion.div>
                 </motion.div>
             )}
         </AnimatePresence>
     );
 };
-
-

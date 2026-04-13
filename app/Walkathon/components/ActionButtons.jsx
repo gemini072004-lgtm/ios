@@ -3,8 +3,8 @@ import React from "react";
 import { motion } from "framer-motion";
 
 /**
- * Action Buttons Component
- * Displays Join Now or Claim Reward buttons based on user status
+ * Action Buttons Component - iOS Native Style
+ * Animated buttons with haptic-style feedback
  */
 export const ActionButtons = ({
     isJoined = false,
@@ -21,6 +21,7 @@ export const ActionButtons = ({
     const logAction = (label, data) => {
         console.log(`[🔘 ACTION] ${label}`, data);
     };
+
     const getButtonText = () => {
         if (!isJoined) {
             return "Join Now";
@@ -30,11 +31,11 @@ export const ActionButtons = ({
                 (sum, reward) => sum + (reward.xpReward || 0),
                 0
             );
-            return `Claim ${availableRewards.length} Reward${availableRewards.length > 1 ? "s" : ""} (+${totalXP} XP)`;
+            return `Claim +${totalXP} XP`;
         }
         if (nextMilestone) {
             const stepsNeeded = nextMilestone.stepMilestone - totalSteps;
-            return `${stepsNeeded.toLocaleString()} steps to next milestone`;
+            return `${stepsNeeded.toLocaleString()} steps to goal`;
         }
         return "Keep Walking!";
     };
@@ -53,68 +54,135 @@ export const ActionButtons = ({
         }
     };
 
-    const isButtonActive =
-        !isJoined || (hasAvailableRewards && availableRewards.length > 0);
+    const isButtonActive = !isJoined || (hasAvailableRewards && availableRewards.length > 0);
+    const hasRewards = hasAvailableRewards && availableRewards.length > 0;
+    const totalXP = availableRewards.reduce((sum, reward) => sum + (reward.xpReward || 0), 0);
 
     return (
         <div className="w-full px-4 space-y-3">
-            {/* Main Action Button */}
+            {/* Main Action Button - iOS Style */}
             <motion.button
-                whileHover={isButtonActive ? { scale: 1.02 } : {}}
-                whileTap={isButtonActive ? { scale: 0.98 } : {}}
+                whileHover={isButtonActive ? { scale: 1.02, y: -2 } : {}}
+                whileTap={isButtonActive ? { scale: 0.96 } : {}}
                 onClick={handleClick}
                 disabled={!isButtonActive || isJoining || isClaiming}
-                className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${isButtonActive
-                    ? "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30"
-                    : "bg-gray-700 text-gray-400 cursor-not-allowed"
-                    } ${isJoining || isClaiming ? "opacity-50 cursor-wait" : ""}`}
+                className={`
+                    relative w-full py-4 rounded-2xl font-bold text-lg overflow-hidden
+                    transition-all duration-300
+                    ${isButtonActive
+                        ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-500/25 active:shadow-orange-500/10"
+                        : "bg-white/5 text-gray-500 cursor-not-allowed"
+                    }
+                    ${isJoining || isClaiming ? "opacity-70" : ""}
+                `}
             >
+                {/* Shine Effect for Active Button */}
+                {isButtonActive && !isJoining && !isClaiming && (
+                    <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                        initial={{ x: "-100%" }}
+                        whileHover={{ x: "100%" }}
+                        transition={{ duration: 0.6 }}
+                        style={{ width: "50%", height: "100%" }}
+                    />
+                )}
+
                 {isJoining ? (
-                    <span className="flex items-center justify-center gap-2">
+                    <span className="flex items-center justify-center gap-3">
                         <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                            className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
                         />
-                        Joining...
+                        <span className="text-white/90">Joining...</span>
                     </span>
                 ) : isClaiming ? (
-                    <span className="flex items-center justify-center gap-2">
+                    <span className="flex items-center justify-center gap-3">
                         <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                            className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
                         />
-                        Claiming Rewards...
+                        <span className="text-white/90">Claiming...</span>
                     </span>
                 ) : (
-                    getButtonText()
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                        {hasRewards && <span className="text-xl">🎁</span>}
+                        {getButtonText()}
+                    </span>
                 )}
             </motion.button>
 
-            {/* Progress Info */}
+            {/* Progress Info Card - iOS Style */}
             {isJoined && nextMilestone && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                                <span className="text-orange-400 text-sm">🎯</span>
+                            </div>
+                            <span className="text-gray-400 text-sm">Next Goal</span>
+                        </div>
+                        <span className="text-white font-semibold">
+                            {(nextMilestone.stepMilestone || 0).toLocaleString()} steps
+                        </span>
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
+                        <span className="text-gray-500 text-sm">Reward</span>
+                        <div className="flex items-center gap-2">
+                            <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg text-sm font-semibold">
+                                +{(nextMilestone.xpReward || 0)} XP
+                            </span>
+                            {nextMilestone.coinReward > 0 && (
+                                <span className="px-2 py-1 bg-yellow-900/30 text-yellow-600 rounded-lg text-sm font-semibold">
+                                    +{nextMilestone.coinReward} 💰
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Mini Progress Bar */}
+                    <div className="mt-3">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>{totalSteps.toLocaleString()} steps</span>
+                            <span>{(nextMilestone.stepMilestone || 0).toLocaleString()} steps</span>
+                        </div>
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ 
+                                    width: `${Math.min((totalSteps / (nextMilestone.stepMilestone || 1)) * 100, 100)}%` 
+                                }}
+                                transition={{ duration: 0.8, ease: "easeOut" }}
+                                className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full"
+                            />
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
+            {/* Auto-Sync Indicator */}
+            {isJoined && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="bg-gray-900/30 border border-gray-700/50 rounded-lg p-3"
+                    transition={{ delay: 0.3 }}
+                    className="flex items-center justify-center gap-2 py-2"
                 >
-                    <div className="flex items-center justify-between">
-                        <span className="text-gray-400 text-sm">Next Milestone:</span>
-                        <span className="text-white font-semibold">
-                            {nextMilestone.stepMilestone.toLocaleString()} steps
-                        </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                        <span className="text-gray-400 text-sm">Reward:</span>
-                        <span className="text-yellow-400 font-semibold">
-                            +{nextMilestone.xpReward} XP
-                        </span>
-                    </div>
+                    <motion.div
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="w-2 h-2 rounded-full bg-green-500"
+                    />
+                    <span className="text-gray-500 text-xs">Auto-syncing with Apple Health</span>
                 </motion.div>
             )}
         </div>
     );
 };
-
-

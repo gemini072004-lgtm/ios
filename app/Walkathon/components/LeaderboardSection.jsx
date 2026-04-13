@@ -1,45 +1,16 @@
 "use client";
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-/**
- * Leaderboard Section
- * Displays weekly rankings for the walkathon
- */
 export const LeaderboardSection = ({
     leaderboard = [],
     userRank = null,
     totalParticipants = 0,
-    onViewFullLeaderboard,
+    showHeader = true,
+    weekKey = "",
 }) => {
-    const getRankIcon = (rank) => {
-        switch (rank) {
-            case 1:
-                return "🥇";
-            case 2:
-                return "🥈";
-            case 3:
-                return "🥉";
-            default:
-                return `#${rank}`;
-        }
-    };
-
-    const getRankColor = (rank) => {
-        switch (rank) {
-            case 1:
-                return "from-yellow-500 to-yellow-600";
-            case 2:
-                return "from-gray-300 to-gray-400";
-            case 3:
-                return "from-orange-600 to-orange-700";
-            default:
-                return "from-gray-600 to-gray-700";
-        }
-    };
-
-    // Show top 10 + user's rank if not in top 10
     const displayLeaderboard = [...leaderboard];
+
     if (
         userRank &&
         userRank.rank > 10 &&
@@ -48,166 +19,163 @@ export const LeaderboardSection = ({
         displayLeaderboard.push(userRank);
     }
 
-    return (
-        <div className="w-full px-4 space-y-4">
-            <div className="flex items-center justify-between mb-4">
-                <motion.h3
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="text-white text-lg font-semibold"
-                >
-                    Weekly Leaderboard
-                </motion.h3>
-                {onViewFullLeaderboard && (
-                    <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={onViewFullLeaderboard}
-                        className="text-orange-400 text-sm font-medium hover:text-orange-300 transition-colors"
-                    >
-                        View All
-                    </motion.button>
+    const getRankBadge = (rank) => {
+        if (rank === 1) return { bg: "bg-gradient-to-br from-yellow-400 to-amber-500", shadow: "shadow-amber-500/40", text: "text-amber-900" };
+        if (rank === 2) return { bg: "bg-gradient-to-br from-gray-300 to-gray-500", shadow: "shadow-gray-400/30", text: "text-gray-800" };
+        if (rank === 3) return { bg: "bg-gradient-to-br from-orange-400 to-orange-600", shadow: "shadow-orange-500/30", text: "text-white" };
+        return { bg: "bg-white/10", shadow: "", text: "text-gray-400" };
+    };
+
+    const Avatar = ({ entry, isCurrentUser }) => {
+        const [imgError, setImgError] = useState(false);
+        const initials = entry.displayName?.charAt(0)?.toUpperCase() || "?";
+        const hasValidImage = entry.avatar && entry.avatar.startsWith('http') && !imgError;
+
+        return (
+            <div className={`
+                w-12 h-12 rounded-full flex items-center justify-center overflow-hidden
+                border-2 shadow-lg
+                ${isCurrentUser 
+                    ? "bg-gradient-to-br from-orange-400 to-orange-600 border-orange-400" 
+                    : "bg-gradient-to-br from-gray-600 to-gray-700 border-gray-500"
+                }
+            `}>
+                {hasValidImage ? (
+                    <img
+                        src={entry.avatar}
+                        alt={entry.displayName}
+                        className="w-full h-full object-cover"
+                        onError={() => setImgError(true)}
+                    />
+                ) : (
+                    <span className={`font-bold text-lg ${isCurrentUser ? 'text-white' : 'text-gray-200'}`}>
+                        {initials}
+                    </span>
                 )}
             </div>
+        );
+    };
 
-            {totalParticipants === 0 ? (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="bg-gray-900/20 border border-gray-700/50 rounded-lg p-6 text-center"
-                >
-                    <p className="text-gray-400 text-sm">
-                        No participants yet. Be the first to join!
-                    </p>
-                </motion.div>
-            ) : (
-                <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-hide">
-                    {displayLeaderboard.map((entry, index) => {
-                        const isCurrentUser =
-                            userRank && entry.userId === userRank.userId;
-                        const rank = entry.rank || index + 1;
-
-                        return (
-                            <motion.div
-                                key={entry.userId || index}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                                className={`rounded-xl p-3 border transition-all ${isCurrentUser
-                                    ? "bg-orange-900/30 border-orange-500/50 shadow-lg shadow-orange-500/20"
-                                    : rank <= 3
-                                        ? "bg-gray-900/30 border-gray-700/50"
-                                        : "bg-gray-900/20 border-gray-800/50"
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    {/* Rank Badge */}
-                                    <div
-                                        className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm bg-gradient-to-br ${getRankColor(
-                                            rank
-                                        )} text-white`}
-                                    >
-                                        {rank <= 3 ? (
-                                            <span className="text-lg">{getRankIcon(rank)}</span>
-                                        ) : (
-                                            <span>{rank}</span>
-                                        )}
-                                    </div>
-
-                                    {/* Avatar */}
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center overflow-hidden">
-                                        {entry.avatar ? (
-                                            <img
-                                                src={entry.avatar}
-                                                alt={entry.displayName || "User"}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <span className="text-white text-lg">
-                                                {entry.displayName?.charAt(0)?.toUpperCase() || "U"}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* User Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <p
-                                            className={`font-semibold text-sm truncate ${isCurrentUser ? "text-orange-400" : "text-white"
-                                                }`}
-                                        >
-                                            {isCurrentUser ? "You" : entry.displayName || "Anonymous"}
-                                        </p>
-                                        <p className="text-gray-400 text-xs">
-                                            {entry.totalSteps?.toLocaleString() || 0} steps
-                                        </p>
-                                    </div>
-
-                                    {/* XP Level Badge */}
-                                    {entry.xpLevel && (
-                                        <div className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-lg">
-                                            <span className="text-yellow-400 text-xs font-semibold">
-                                                Lvl {entry.xpLevel}
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {/* VIP Badge */}
-                                    {entry.vipLevel && (
-                                        <div
-                                            className={`px-2 py-1 rounded-lg text-xs font-semibold ${entry.vipLevel === "gold"
-                                                ? "bg-yellow-900/50 text-yellow-400"
-                                                : entry.vipLevel === "silver"
-                                                    ? "bg-gray-700/50 text-gray-300"
-                                                    : "bg-purple-900/50 text-purple-400"
-                                                }`}
-                                        >
-                                            VIP
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Badges */}
-                                {entry.badges && entry.badges.length > 0 && (
-                                    <div className="flex items-center gap-2 mt-2">
-                                        {entry.badges.map((badge, badgeIndex) => (
-                                            <span
-                                                key={badgeIndex}
-                                                className="text-xs px-2 py-0.5 bg-orange-900/30 text-orange-400 rounded-full"
-                                            >
-                                                {badge}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                            </motion.div>
-                        );
-                    })}
+    return (
+        <div className="w-full px-4 py-4">
+            {showHeader && (
+                <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                            <span className="text-2xl">🏆</span>
+                        </div>
+                        <div>
+                            <h3 className="text-white font-bold text-lg">Weekly Rankings</h3>
+                            <p className="text-gray-500 text-sm">{totalParticipants} walkers this week</p>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            {/* User Rank Summary */}
-            {userRank && userRank.rank > 0 && (
+            {displayLeaderboard.length === 0 ? (
+                <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-16"
+                >
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center mx-auto mb-4 shadow-xl">
+                        <span className="text-4xl">👟</span>
+                    </div>
+                    <p className="text-white font-semibold text-lg">No activity yet</p>
+                    <p className="text-gray-500 text-sm mt-2">Start walking to join the leaderboard!</p>
+                </motion.div>
+            ) : (
+                <div className="space-y-3">
+                    <AnimatePresence>
+                        {displayLeaderboard.map((entry, index) => {
+                            const isCurrentUser = userRank && entry.userId === userRank.userId;
+                            const rank = entry.rank || index + 1;
+                            const badge = getRankBadge(rank);
+
+                            return (
+                                <motion.div
+                                    key={entry.userId || index}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.05, type: "spring", stiffness: 300 }}
+                                    whileHover={{ scale: 1.01 }}
+                                    className={`
+                                        flex items-center gap-4 px-4 py-3 rounded-2xl cursor-pointer
+                                        shadow-lg transition-all duration-200
+                                        ${isCurrentUser 
+                                            ? "bg-gradient-to-r from-orange-500/25 to-orange-600/10 border border-orange-500/40 shadow-orange-500/10" 
+                                            : "bg-gradient-to-r from-gray-800/80 to-gray-900/80 border border-white/5 hover:border-white/10"
+                                        }
+                                    `}
+                                >
+                                    <motion.div
+                                        whileHover={{ scale: 1.1 }}
+                                        className={`
+                                            w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm
+                                            ${badge.bg} ${badge.text} shadow-lg ${badge.shadow}
+                                        `}
+                                    >
+                                        {rank <= 3 ? (
+                                            <span className="text-lg">{rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉"}</span>
+                                        ) : (
+                                            rank
+                                        )}
+                                    </motion.div>
+
+                                    <Avatar entry={entry} isCurrentUser={isCurrentUser} />
+
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`font-bold text-base truncate ${isCurrentUser ? "text-orange-400" : "text-white"}`}>
+                                            {isCurrentUser ? "You" : entry.displayName || "Anonymous"}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-gray-500 text-sm">👟</span>
+                                            <span className="text-gray-400 text-sm font-medium">
+                                                {(entry.totalSteps || 0).toLocaleString()} steps
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col items-end">
+                                        <motion.span 
+                                            whileHover={{ scale: 1.05 }}
+                                            className={`
+                                                px-3 py-1.5 rounded-xl font-bold text-sm
+                                                ${isCurrentUser 
+                                                    ? "bg-orange-500 text-white" 
+                                                    : "bg-emerald-500/20 text-emerald-400"
+                                                }
+                                            `}
+                                        >
+                                            #{rank}
+                                        </motion.span>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {userRank && userRank.rank > 0 && !displayLeaderboard.find(e => e.userId === userRank.userId) && (
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="bg-orange-900/20 border border-orange-500/50 rounded-lg p-4"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-6 p-4 bg-gradient-to-r from-orange-500/20 to-orange-600/10 rounded-2xl border border-orange-500/30"
                 >
                     <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-white font-semibold">Your Rank</p>
-                            <p className="text-gray-400 text-sm">
-                                #{userRank.rank} of {totalParticipants} participants
-                            </p>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                                <span className="text-white font-bold">#{userRank.rank}</span>
+                            </div>
+                            <div>
+                                <p className="text-white font-bold">Your Position</p>
+                                <p className="text-gray-400 text-xs">Keep walking!</p>
+                            </div>
                         </div>
                         <div className="text-right">
-                            <p className="text-orange-400 font-bold text-xl">
-                                #{userRank.rank}
-                            </p>
-                            {userRank.percentile && (
-                                <p className="text-gray-400 text-xs">
-                                    Top {100 - userRank.percentile}%
-                                </p>
-                            )}
+                            <p className="text-orange-400 font-black text-xl">#{userRank.rank}</p>
+                            <p className="text-gray-500 text-xs">of {totalParticipants}</p>
                         </div>
                     </div>
                 </motion.div>
@@ -215,5 +183,3 @@ export const LeaderboardSection = ({
         </div>
     );
 };
-
-

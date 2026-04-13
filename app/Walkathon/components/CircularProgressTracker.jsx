@@ -1,10 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useSpring, useTransform, AnimatePresence } from "framer-motion";
 
 /**
- * Circular Progress Tracker Component
- * Displays steps progress in a circular dial format with character animation
+ * Circular Progress Tracker - iOS Native Style
+ * Animated circular progress with step count
  */
 export const CircularProgressTracker = ({
     totalSteps = 0,
@@ -14,254 +14,196 @@ export const CircularProgressTracker = ({
     nextMilestone = null,
     milestones = [],
     rewardsClaimed = [],
+    progressPercentage = 0,
 }) => {
     const [animatedSteps, setAnimatedSteps] = useState(0);
-    const [progressArc, setProgressArc] = useState(0);
-
-    // Calculate progress percentage
-    const maxMilestone = milestones.length > 0
-        ? Math.max(...milestones.map(m => m.stepMilestone))
+    
+    // Use backend progressPercentage if available, otherwise calculate
+    const maxMilestone = milestones.length > 0 
+        ? milestones[milestones.length - 1]?.stepMilestone || 10000
         : 10000;
-    const progressPercentage = Math.min((totalSteps / maxMilestone) * 100, 100);
-
-    // Animate steps count
+    const progressPercent = progressPercentage > 0 
+        ? progressPercentage 
+        : Math.min((totalSteps / maxMilestone) * 100, 100);
+    
+    // Spring animation for steps counter
+    const springSteps = useSpring(0, { stiffness: 60, damping: 15 });
+    
     useEffect(() => {
-        const duration = 1;
-        const start = animatedSteps;
-        const end = totalSteps;
-        const steps = Math.abs(end - start);
-        const increment = steps / (duration * 60); // 60fps
-
-        if (start === end) return;
-
-        const timer = setInterval(() => {
-            setAnimatedSteps((prev) => {
-                const diff = end - prev;
-                if (Math.abs(diff) < Math.abs(increment)) {
-                    clearInterval(timer);
-                    return end;
-                }
-                return prev + (increment > 0 ? Math.ceil(increment) : Math.floor(increment));
-            });
-        }, 16); // ~60fps
-
-        return () => clearInterval(timer);
-    }, [totalSteps]);
-
-    // Animate progress arc
-    useEffect(() => {
-        const targetProgress = progressPercentage / 100;
-        const duration = 1500; // 1.5 seconds
-        const startTime = Date.now();
-        const startProgress = progressArc;
-
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const easeOut = 1 - Math.pow(1 - progress, 3); // Ease out cubic
-            const currentProgress = startProgress + (targetProgress - startProgress) * easeOut;
-
-            setProgressArc(currentProgress);
-
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-        };
-
-        requestAnimationFrame(animate);
-    }, [progressPercentage]);
-
-    // Position milestones around the circle
-    const getMilestonePosition = (milestone, index, total) => {
-        const angle = (360 / total) * index - 90; // Start from top
-        const radius = 140; // Distance from center
-        const radian = (angle * Math.PI) / 180;
-        const x = Math.cos(radian) * radius;
-        const y = Math.sin(radian) * radius;
-        return { x, y, angle };
-    };
-
-    // Determine which milestones to show around the circle
-    const visibleMilestones = milestones.slice(0, 8); // Show max 8 milestones
+        springSteps.set(totalSteps);
+        const unsubscribe = springSteps.on("change", (latest) => {
+            setAnimatedSteps(Math.round(latest));
+        });
+        return unsubscribe;
+    }, [totalSteps, springSteps]);
+    
+    // Circle dimensions
+    const size = 240;
+    const strokeWidth = 14;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const progressOffset = circumference - (progressPercent / 100) * circumference;
 
     return (
-        <div className="relative w-full flex items-center justify-center py-8">
-            <div className="relative w-[320px] h-[320px]">
-                {/* Background Circle */}
+        <div className="w-full px-4 py-6">
+            {/* Main Progress Circle */}
+            <motion.div
+                initial={{ scale: 0.85, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.1 }}
+                className="relative flex items-center justify-center mx-auto"
+                style={{ width: size, height: size }}
+            >
+                {/* Background Glow Effect */}
+                <div 
+                    className="absolute inset-0 rounded-full opacity-30 blur-2xl"
+                    style={{
+                        background: `radial-gradient(circle, rgba(249, 115, 22, 0.4) 0%, transparent 70%)`
+                    }}
+                />
+                
+                {/* SVG Progress Ring */}
                 <svg
-                    className="absolute inset-0 w-full h-full transform -rotate-90"
-                    viewBox="0 0 200 200"
+                    width={size}
+                    height={size}
+                    className="absolute transform -rotate-90"
                 >
-                    {/* Background track */}
+                    {/* Background Track */}
                     <circle
-                        cx="100"
-                        cy="100"
-                        r="90"
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={radius}
                         fill="none"
-                        stroke="#2A2A2A"
-                        strokeWidth="8"
-                        className="opacity-30"
+                        stroke="rgba(255, 255, 255, 0.08)"
+                        strokeWidth={strokeWidth}
                     />
-                    {/* Progress arc */}
+                    
+                    {/* Animated Progress Arc */}
                     <motion.circle
-                        cx="100"
-                        cy="100"
-                        r="90"
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={radius}
                         fill="none"
-                        stroke="#FF6B35"
-                        strokeWidth="10"
+                        stroke="url(#progressGradient)"
+                        strokeWidth={strokeWidth}
                         strokeLinecap="round"
-                        strokeDasharray={2 * Math.PI * 90}
-                        strokeDashoffset={2 * Math.PI * 90 * (1 - progressArc)}
-                        initial={{ pathLength: 0 }}
-                        animate={{ pathLength: progressArc }}
-                        transition={{ duration: 1.5, ease: "easeOut" }}
-                        style={{
-                            filter: "drop-shadow(0 0 8px rgba(255, 107, 53, 0.5))",
-                        }}
+                        strokeDasharray={circumference}
+                        initial={{ strokeDashoffset: circumference }}
+                        animate={{ strokeDashoffset: progressOffset }}
+                        transition={{ duration: 1.5, ease: [0.25, 0.1, 0.25, 1] }}
                     />
+                    
+                    <defs>
+                        <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#f97316" />
+                            <stop offset="50%" stopColor="#fb923c" />
+                            <stop offset="100%" stopColor="#fdba74" />
+                        </linearGradient>
+                    </defs>
                 </svg>
 
-                {/* Milestone markers and numbers around circle */}
-                {visibleMilestones.map((milestone, index) => {
-                    const pos = getMilestonePosition(index, index, visibleMilestones.length);
-                    const isReached = totalSteps >= milestone.stepMilestone;
-                    const isClaimed = rewardsClaimed.includes(milestone.stepMilestone);
-
-                    return (
-                        <div
-                            key={milestone.stepMilestone}
-                            className="absolute"
-                            style={{
-                                left: `calc(50% + ${pos.x}px)`,
-                                top: `calc(50% + ${pos.y}px)`,
-                                transform: "translate(-50%, -50%)",
-                            }}
-                        >
-                            <motion.div
-                                initial={{ scale: 0, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ delay: index * 0.1, type: "spring" }}
-                                className={`w-8 h-8 rounded-full flex items-center justify-center ${isClaimed
-                                    ? "bg-green-500"
-                                    : isReached
-                                        ? "bg-orange-500"
-                                        : "bg-gray-600"
-                                    }`}
-                            >
-                                {isClaimed && (
-                                    <motion.span
-                                        animate={{ rotate: 360 }}
-                                        transition={{ duration: 0.5 }}
-                                        className="text-white text-xs"
-                                    >
-                                        ✓
-                                    </motion.span>
-                                )}
-                            </motion.div>
-                            {/* Milestone number */}
-                            <div
-                                className={`absolute -mt-10 text-xs font-semibold whitespace-nowrap ${isReached ? "text-orange-400" : "text-gray-500"
-                                    }`}
-                                style={{
-                                    left: "50%",
-                                    transform: "translateX(-50%)",
-                                }}
-                            >
-                                {milestone.stepMilestone >= 1000
-                                    ? `${milestone.stepMilestone / 1000}k`
-                                    : milestone.stepMilestone}
-                            </div>
-                        </div>
-                    );
-                })}
-
-                {/* Center Character/Content */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    {/* Character/Mascot (animated panda or placeholder) */}
-                    <motion.div
-                        initial={{ scale: 0.8, y: 20 }}
-                        animate={{ scale: 1, y: 0 }}
-                        transition={{ type: "spring", stiffness: 200, damping: 10 }}
-                        className="mb-4"
-                    >
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center relative overflow-hidden">
-                            {/* Character placeholder - can be replaced with image */}
-                            <motion.div
-                                animate={{
-                                    y: [0, -5, 0],
-                                }}
-                                transition={{
-                                    duration: 2,
-                                    repeat: Infinity,
-                                    ease: "easeInOut",
-                                }}
-                                className="text-4xl"
-                            >
-                                🐼
-                            </motion.div>
-                            {/* Pulsing glow effect */}
-                            <motion.div
-                                className="absolute inset-0 rounded-full bg-orange-400 opacity-20"
-                                animate={{
-                                    scale: [1, 1.2, 1],
-                                    opacity: [0.2, 0.4, 0.2],
-                                }}
-                                transition={{
-                                    duration: 2,
-                                    repeat: Infinity,
-                                    ease: "easeInOut",
-                                }}
-                            />
-                        </div>
-                    </motion.div>
-
-                    {/* Level Display */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="flex items-center gap-2 mb-2"
-                    >
-                        <span className="text-white text-sm font-medium">Lvl {currentLevel}</span>
-                        <span className="text-gray-400 text-sm">
-                            {levelProgress}/{levelMax}
-                        </span>
-                        {levelProgress >= levelMax && (
-                            <motion.span
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                className="text-green-400 text-lg"
-                            >
-                                ⭐
-                            </motion.span>
-                        )}
-                    </motion.div>
-
+                {/* Center Content */}
+                <div className="relative z-10 flex flex-col items-center">
                     {/* Steps Count */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.5, type: "spring" }}
-                        className="text-white text-5xl font-bold mb-1"
+                        key={animatedSteps}
+                        initial={{ y: 8, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                        className="flex flex-col items-center"
                     >
-                        {animatedSteps.toLocaleString()}
+                        <span className="text-6xl font-bold text-white tracking-tight tabular-nums">
+                            {animatedSteps.toLocaleString()}
+                        </span>
+                        <span className="text-sm text-gray-400 mt-1 uppercase tracking-widest font-medium">
+                            steps
+                        </span>
                     </motion.div>
 
-                    {/* Conversion Text */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.7 }}
-                        className="text-gray-400 text-xs"
-                    >
-                        {nextMilestone
-                            ? `${nextMilestone.stepMilestone - totalSteps} to next milestone`
-                            : "Max milestone reached!"}
-                    </motion.div>
+                    {/* Next Milestone Badge */}
+                    <AnimatePresence>
+                        {nextMilestone && (
+                            <motion.div
+                                initial={{ y: 10, opacity: 0, scale: 0.9 }}
+                                animate={{ y: 0, opacity: 1, scale: 1 }}
+                                exit={{ y: 10, opacity: 0, scale: 0.9 }}
+                                transition={{ delay: 0.5, type: "spring" }}
+                                className="mt-4 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20"
+                            >
+                                <span className="text-xs text-gray-300">
+                                    Next: <span className="text-orange-400 font-semibold">
+                                        {(nextMilestone.stepMilestone || 0).toLocaleString()} steps
+                                    </span>
+                                </span>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-            </div>
+            </motion.div>
+
+            {/* Level Progress */}
+            <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="mt-8 mx-4"
+            >
+                <div className="flex items-center justify-between text-sm mb-3">
+                    <div className="flex items-center gap-2">
+                        <span className="text-white font-semibold">Level {currentLevel}</span>
+                        <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-xs">
+                            {levelProgress}/{levelMax} claimed
+                        </span>
+                    </div>
+                </div>
+                
+                {/* Progress Pills */}
+                <div className="flex items-center gap-3">
+                    {Array.from({ length: levelMax }).map((_, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.5 + i * 0.1, type: "spring", stiffness: 300 }}
+                            className={`h-3 flex-1 rounded-full transition-all duration-500 ${
+                                i < levelProgress
+                                    ? "bg-gradient-to-r from-orange-500 to-orange-400 shadow-lg shadow-orange-500/30"
+                                    : "bg-white/10"
+                            }`}
+                        />
+                    ))}
+                </div>
+            </motion.div>
+
+            {/* Stats Cards */}
+            <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="mt-8 mx-4 grid grid-cols-2 gap-3"
+            >
+                {/* Milestones Card */}
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                            <span className="text-orange-400 text-sm">🏆</span>
+                        </div>
+                        <span className="text-xs text-gray-400 uppercase tracking-wider">Milestones</span>
+                    </div>
+                    <div className="text-2xl font-bold text-white">{milestones.length}</div>
+                </div>
+                
+                {/* Claimed Card */}
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-xl bg-green-500/20 flex items-center justify-center">
+                            <span className="text-green-400 text-sm">✓</span>
+                        </div>
+                        <span className="text-xs text-gray-400 uppercase tracking-wider">Claimed</span>
+                    </div>
+                    <div className="text-2xl font-bold text-white">{rewardsClaimed.length}</div>
+                </div>
+            </motion.div>
         </div>
     );
 };
-

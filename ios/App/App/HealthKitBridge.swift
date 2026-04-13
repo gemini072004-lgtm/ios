@@ -59,11 +59,14 @@ public class HealthKitBridge: CAPPlugin {
         guard let startDateString = call.getString("startDate"),
               let endDateString = call.getString("endDate"),
               let startDate = ISO8601DateFormatter().date(from: startDateString),
-              let endDate = ISO8601DateFormatter().date(from: endDateString),
+              var endDate = ISO8601DateFormatter().date(from: endDateString),
               let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else {
             call.reject("Invalid parameters: startDate and endDate required in ISO 8601 format")
             return
         }
+
+        // Extend end date by 1 second to ensure we capture all steps up to midnight
+        endDate = Calendar.current.date(byAdding: .second, value: 1, to: endDate) ?? endDate
 
         let predicate = HKQuery.predicateForSamples(
             withStart: startDate,
